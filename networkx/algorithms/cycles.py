@@ -306,25 +306,20 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
     sccs = list(nx.strongly_connected_components(subG))
 
     if max_cycle_len is None:
-        limit_cycles_length = False
         max_cycle_len = G.number_of_edges()
-    else:
-        limit_cycles_length = True
-
-    if root is None:
-        rootless = True
-    else:
-        rootless = False
 
     while sccs:
         scc = sccs.pop()
         # order of scc determines ordering of nodes
-        if not rootless:
-            startnode = root
-            if startnode not in scc:
+        if root is not None:
+            if root not in scc:
                 continue
+            else:
+                startnode = root
+                scc.remove(startnode)
         else:
             startnode = scc.pop()
+
         # Processing node runs "circuit" routine from recursive version
         path = [startnode]
         blocked = set()  # vertex: blocked from search?
@@ -338,22 +333,18 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
             if nbrs:
                 nextnode = nbrs.pop()
 
-                # Complete the loop prematurely
-                if limit_cycles_length and not rootless:
-                    if len(path) > max_cycle_len:
-                        nextnode = startnode
-
                 if nextnode == startnode:
-                    if len(path) <= max_cycle_len:
+                    if len(path) <= max_cycle_len + 1:
                         yield path[:]
                     closed.update(path)
-#                        print "Found a cycle", path, closed
+#                   print "Found a cycle", path, closed
                 elif nextnode not in blocked:
                     path.append(nextnode)
                     stack.append((nextnode, list(subG[nextnode])))
                     closed.discard(nextnode)
                     blocked.add(nextnode)
                     continue
+
             # done with nextnode... look for more neighbors
             if not nbrs:  # no more nbrs
                 if thisnode in closed:
@@ -366,6 +357,8 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
 #                assert path[-1] == thisnode
                 path.pop()
         # done processing this node
+        if root is not None:
+            break
         subG.remove_node(startnode)
         H = subG.subgraph(scc)  # make smaller to avoid work in SCC routine
         sccs.extend(list(nx.strongly_connected_components(H)))
