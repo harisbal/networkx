@@ -225,7 +225,7 @@ def simple_cycles(G):
 
 
 @not_implemented_for('undirected')
-def simple_cycles_root(G, root=None, max_cycle_len=None):
+def simple_cycles_root(G, root=None, limit=None):
     """Find simple cycles (elementary circuits) of a directed graph.
 
     A `simple cycle`, or `elementary circuit`, is a closed path where
@@ -288,14 +288,6 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
     --------
     cycle_basis
     """
-    def _unblock(thisnode, blocked, B):
-        stack = set([thisnode])
-        while stack:
-            node = stack.pop()
-            if node in blocked:
-                blocked.remove(node)
-                stack.update(B[node])
-                B[node].clear()
 
     # Johnson's algorithm requires some ordering of the nodes.
     # We assign the arbitrary ordering given by the strongly connected comps
@@ -305,8 +297,8 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
     subG = type(G)(G.edges())
     sccs = list(nx.strongly_connected_components(subG))
 
-    if max_cycle_len is None:
-        max_cycle_len = G.number_of_edges()
+    if limit is None:
+        limit = G.number_of_edges()
 
     while sccs:
         scc = sccs.pop()
@@ -320,48 +312,33 @@ def simple_cycles_root(G, root=None, max_cycle_len=None):
         else:
             startnode = scc.pop()
 
-        # Processing node runs "circuit" routine from recursive version
         path = [startnode]
-        blocked = set()  # vertex: blocked from search?
-        closed = set()   # nodes involved in a cycle
+        blocked = set()
         blocked.add(startnode)
-        B = defaultdict(set)  # graph portions that yield no elementary circuit
-        stack = [(startnode, list(subG[startnode]))]  # subG gives comp nbrs
+        stack = [(startnode, list(subG[startnode]))]
+
         while stack:
             thisnode, nbrs = stack[-1]
 
-            if nbrs:
+            if nbrs and len(path) <= limit:
                 nextnode = nbrs.pop()
-
                 if nextnode == startnode:
-                    if len(path) <= max_cycle_len + 1:
-                        yield path[:]
-                    closed.update(path)
-#                   print "Found a cycle", path, closed
+                    yield path[:]
                 elif nextnode not in blocked:
                     path.append(nextnode)
                     stack.append((nextnode, list(subG[nextnode])))
-                    closed.discard(nextnode)
                     blocked.add(nextnode)
                     continue
-
-            # done with nextnode... look for more neighbors
-            if not nbrs:  # no more nbrs
-                if thisnode in closed:
-                    _unblock(thisnode, blocked, B)
-                else:
-                    for nbr in subG[thisnode]:
-                        if thisnode not in B[nbr]:
-                            B[nbr].add(thisnode)
+            if not nbrs or len(path) > limit:
+                blocked.remove(thisnode)
                 stack.pop()
-#                assert path[-1] == thisnode
                 path.pop()
-        # done processing this node
+        subG.remove_node(startnode)
+        H = subG.subgraph(scc)
+        sccs.extend(list(nx.strongly_connected_components(H)))
+
         if root is not None:
             break
-        subG.remove_node(startnode)
-        H = subG.subgraph(scc)  # make smaller to avoid work in SCC routine
-        sccs.extend(list(nx.strongly_connected_components(H)))
 
 
 @not_implemented_for('undirected')
