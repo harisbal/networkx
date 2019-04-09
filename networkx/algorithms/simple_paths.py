@@ -260,10 +260,11 @@ def all_simple_paths(G, source, target, cutoff_len=None, weight=None, cutoff_wei
     if G.is_multigraph():
         return _all_simple_paths_multigraph(G, source, targets, cutoff_len)
     else:
-        if weight is False:
-            return _all_simple_paths_graph(G, source, targets, cutoff_len)
+        if weight:
+            return _all_simple_paths_weighted_graph(G, source, targets, cutoff_len,
+                                                    weight, cutoff_weight)
         else:
-            return _all_simple_paths_weighted_graph(G, source, targets, cutoff_len, weight, cutoff_weight)
+            return _all_simple_paths_graph(G, source, targets, cutoff_len)
 
 
 def _all_simple_paths_graph(G, source, targets, cutoff):
