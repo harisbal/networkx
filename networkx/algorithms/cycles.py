@@ -252,7 +252,7 @@ def simple_cycles_root(G, root=None, limit=None):
        A directed graph
     root : node, optional
        Specify starting node for basis.
-    max_cycle_len : integer
+    limit : integer
        the maximum allowed lenthg of the returned path
     Returns
     -------
