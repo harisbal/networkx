@@ -309,13 +309,13 @@ def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist
         child = next(children, None)
         if child is None:
             stack.pop()
-            visited.popitem()
             if len(visited) > 1:
                 path_dist -= _get_last_pair_dist(list(visited))
             else:
                 path_dist = 0
+            visited.popitem()
         elif ((len(visited) < cutoff) and
-                (path_dist + _get_last_pair_dist(list(visited)) < maxdist)):
+                (path_dist + _get_last_pair_dist(list(visited)+[child]) < maxdist)):
             if child in visited:
                 continue
             if child in targets:
