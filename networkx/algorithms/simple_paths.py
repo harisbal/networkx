@@ -295,47 +295,45 @@ def _all_simple_paths_graph(G, source, targets, cutoff):
 
 def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist):
 
-    def _get_last_pair_dist(nodes):
-        if len(nodes) > 1:
-            return G[nodes[-2]][nodes[-1]][weight]
-        else:
-            return 0
+    import itertools
+
+    def pairwise(iterable):
+        "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+        a, b = itertools.tee(iterable)
+        next(b, None)
+        return zip(a, b)
+
+    def _calculate_distance(nodes):
+        dist = sum([G[u][v][weight] for u, v in pairwise(nodes)])
+        return dist
 
     visited = collections.OrderedDict.fromkeys([source])
-    path_dist = 0
     stack = [iter(G[source])]
     while stack:
         children = stack[-1]
         child = next(children, None)
         if child is None:
             stack.pop()
-            if len(visited) > 1:
-                path_dist -= _get_last_pair_dist(list(visited))
-            else:
-                path_dist = 0
             visited.popitem()
         elif ((len(visited) < cutoff) and
-                (path_dist + _get_last_pair_dist(list(visited)+[child]) < maxdist)):
+                (_calculate_distance(list(visited)+[child]) < maxdist)):
             if child in visited:
                 continue
             if child in targets:
                 yield list(visited) + [child]
 
             visited[child] = None
-            path_dist += _get_last_pair_dist(list(visited))
 
             if targets - set(visited.keys()):  # expand stack until find all targets
                 stack.append(iter(G[child]))
             else:
-                path_dist -= _get_last_pair_dist(list(visited))
                 visited.popitem()# maybe other ways to child
         else:  # len(visited) == cutoff:
             for target in (targets & (set(children) | {child})) - set(visited.keys()):
                 # check if length requirement is met
-                if (path_dist + _get_last_pair_dist(list(visited)+[target])) <= maxdist:
+                if (_calculate_distance(list(visited)+[target])) <= maxdist:
                     yield list(visited) + [target]
             stack.pop()
-            path_dist -= _get_last_pair_dist(list(visited))
             visited.popitem()
 
 
