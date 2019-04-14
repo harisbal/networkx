@@ -295,14 +295,6 @@ def _all_simple_paths_graph(G, source, targets, cutoff):
 
 def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist):
 
-    import itertools
-
-    def pairwise(iterable):
-        "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-        a, b = itertools.tee(iterable)
-        next(b, None)
-        return zip(a, b)
-
     def _calculate_distance(nodes):
         dist = sum([G[u][v][weight] for u, v in pairwise(nodes)])
         return dist
@@ -315,12 +307,13 @@ def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist
         if child is None:
             stack.pop()
             visited.popitem()
-        elif (len(visited) < cutoff) and (_calculate_distance(list(visited)) < maxdist):
+        elif len(visited) < cutoff:
             if child in visited:
                 continue
+            if _calculate_distance(list(visited) + [child]) > maxdist:
+                continue
             if child in targets:
-                if _calculate_distance(list(visited)+[child]) <= maxdist:
-                    yield list(visited) + [child]
+                yield list(visited) + [child]
 
             visited[child] = None
 
