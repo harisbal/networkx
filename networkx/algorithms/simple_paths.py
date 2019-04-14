@@ -315,11 +315,11 @@ def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist
         if child is None:
             stack.pop()
             visited.popitem()
-        elif len(visited) < cutoff:
+        elif (len(visited) < cutoff) and (_calculate_distance(list(visited)) < maxdist):
             if child in visited:
                 continue
             if child in targets:
-                if _calculate_distance(list(visited) + [child]) <= maxdist:
+                if _calculate_distance(list(visited)+[child]) <= maxdist:
                     yield list(visited) + [child]
 
             visited[child] = None
