@@ -236,7 +236,7 @@ def simple_cycles(G):
 
 
 @not_implemented_for('undirected')
-def simple_cycles_root(G, root=None, limit=None):
+def simple_cycles_root(G, root=None, cutoff=None):
     """Find simple cycles (elementary circuits) of a directed graph.
 
     A `simple cycle`, or `elementary circuit`, is a closed path where
@@ -308,8 +308,8 @@ def simple_cycles_root(G, root=None, limit=None):
     subG = type(G)(G.edges())
     sccs = list(nx.strongly_connected_components(subG))
 
-    if limit is None:
-        limit = G.number_of_edges()
+    if cutoff is None:
+        cutoff = G.number_of_edges()
 
     while sccs:
         scc = sccs.pop()
@@ -331,7 +331,7 @@ def simple_cycles_root(G, root=None, limit=None):
         while stack:
             thisnode, nbrs = stack[-1]
 
-            if nbrs and len(path) <= limit:
+            if nbrs and len(path) <= cutoff:
                 nextnode = nbrs.pop()
                 if nextnode == startnode:
                     yield path[:]
@@ -340,7 +340,7 @@ def simple_cycles_root(G, root=None, limit=None):
                     stack.append((nextnode, list(subG[nextnode])))
                     blocked.add(nextnode)
                     continue
-            if not nbrs or len(path) > limit:
+            if not nbrs or len(path) > cutoff:
                 blocked.remove(thisnode)
                 stack.pop()
                 path.pop()
