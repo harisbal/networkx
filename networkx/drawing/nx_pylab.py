@@ -821,6 +821,14 @@ def draw_networkx_labels(G, pos,
         labelbottom=False,
         labelleft=False)
 
+    plt.tick_params(
+        axis='both',
+        which='both',
+        bottom=False,
+        left=False,
+        labelbottom=False,
+        labelleft=False)
+
     return text_items
 
 
