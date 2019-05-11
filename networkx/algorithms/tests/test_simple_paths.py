@@ -105,14 +105,14 @@ def test_digraph_all_simple_paths_with_two_targets_emits_two_paths():
 def test_all_simple_paths_with_two_targets_cutoff():
     G = nx.path_graph(4)
     G.add_edge(2, 4)
-    paths = nx.all_simple_paths(G, 0, [3, 4], cutoff_len=3)
+    paths = nx.all_simple_paths(G, 0, [3, 4], cutoff=3)
     assert_equal(set(tuple(p) for p in paths), {(0, 1, 2, 3), (0, 1, 2, 4)})
 
 
 def test_digraph_all_simple_paths_with_two_targets_cutoff():
     G = nx.path_graph(4, create_using=nx.DiGraph())
     G.add_edge(2, 4)
-    paths = nx.all_simple_paths(G, 0, [3, 4], cutoff_len=3)
+    paths = nx.all_simple_paths(G, 0, [3, 4], cutoff=3)
     assert_equal(set(tuple(p) for p in paths), {(0, 1, 2, 3), (0, 1, 2, 4)})
 
 
@@ -144,9 +144,9 @@ def test_all_simple_paths_source_target():
 
 def test_all_simple_paths_cutoff():
     G = nx.complete_graph(4)
-    paths = nx.all_simple_paths(G, 0, 1, cutoff_len=1)
+    paths = nx.all_simple_paths(G, 0, 1, cutoff=1)
     assert_equal(set(tuple(p) for p in paths), {(0, 1)})
-    paths = nx.all_simple_paths(G, 0, 1, cutoff_len=2)
+    paths = nx.all_simple_paths(G, 0, 1, cutoff=2)
     assert_equal(set(tuple(p) for p in paths), {(0, 1), (0, 2, 1), (0, 3, 1)})
 
 
@@ -158,10 +158,10 @@ def test_all_simple_paths_on_non_trivial_graph():
     assert_equal(set(tuple(p) for p in paths), {
         (1, 2), (1, 3, 4, 2), (1, 5, 4, 2), (1, 3), (1, 2, 3), (1, 5, 4, 3),
         (1, 5, 4, 2, 3)})
-    paths = nx.all_simple_paths(G, 1, [2, 3], cutoff_len=3)
+    paths = nx.all_simple_paths(G, 1, [2, 3], cutoff=3)
     assert_equal(set(tuple(p) for p in paths), {
         (1, 2), (1, 3, 4, 2), (1, 5, 4, 2), (1, 3), (1, 2, 3), (1, 5, 4, 3)})
-    paths = nx.all_simple_paths(G, 1, [2, 3], cutoff_len=2)
+    paths = nx.all_simple_paths(G, 1, [2, 3], cutoff=2)
     assert_equal(set(tuple(p) for p in paths), {(1, 2), (1, 3), (1, 2, 3)})
 
 
@@ -175,35 +175,41 @@ def test_all_simple_paths_multigraph():
     assert_equal(set(tuple(p) for p in paths), {(1, 2), (1, 2), (1, 10, 2)})
 
 
-def test_all_simple_paths_multigraph_with_cutoff():
+def test_all_simple_paths_multigraph_with_length_cutoff():
     G = nx.MultiGraph([(1, 2), (1, 2), (1, 10), (10, 2)])
-    paths = list(nx.all_simple_paths(G, 1, 2, cutoff_len=1))
+    paths = list(nx.all_simple_paths(G, 1, 2, cutoff=1))
     assert_equal(len(paths), 2)
     assert_equal(set(tuple(p) for p in paths), {(1, 2), (1, 2)})
 
 
-def test_all_simple_paths_weighted_graph_with_maxdist():
+def test_all_simple_paths_weighted_graph_with_multiple_weight_cutoffs():
     edges = [(1, 2), (2, 10), (1, 5), (5, 4), (4, 3), (3, 10)]
-    distances = [5, 6, 1, 3, 2, 2]
-    d = {e: {'Distance': dist} for e, dist in zip(edges, distances)}
+    weight1 = [5, 6, 1, 3, 2, 2]
+    weight2 = [50, 60, 10, 30, 20, 20]
+    d = {e: {'w1': w1, 'w2': w2} for e, w1, w2 in zip(edges, weight1, weight2)}
 
     G = nx.Graph(edges)
     nx.set_edge_attributes(G, d)
 
-    paths = list(nx.all_simple_paths(G, 1, 10, weight='Distance', cutoff_weight=10))
+    paths = list(nx.all_simple_paths(G, 1, 10, weight=['w1', 'w2'], cutoff=[10, 1000]))
+    assert_equal(len(paths), 1)
+    assert_equal(paths[0], [1, 5, 4, 3, 10])
+
+    # Check that order of weights has no effect on result
+    paths = list(nx.all_simple_paths(G, 1, 10, weight=['w2', 'w1'], cutoff=[10000, 10]))
     assert_equal(len(paths), 1)
     assert_equal(paths[0], [1, 5, 4, 3, 10])
 
 
-def test_all_simple_paths_weighted_graph_with_cutoff_and_maxdist():
+def test_all_simple_paths_weighted_graph_with_lenght_and_weight_cutoffs():
     edges = [(1, 2), (2, 10), (1, 5), (5, 4), (4, 3), (3, 10)]
-    distances = [5, 6, 1, 3, 2, 2]
-    d = {e: {'Distance': dist} for e, dist in zip(edges, distances)}
+    weight1 = [5, 6, 1, 3, 2, 2]
+    d = {e: {'w1': w1} for e, w1 in zip(edges, weight1)}
 
     G = nx.Graph(edges)
     nx.set_edge_attributes(G, d)
 
-    paths = list(nx.all_simple_paths(G, 1, 10, cutoff_len=2, weight='Distance', cutoff_weight=10))
+    paths = list(nx.all_simple_paths(G, 1, 10, weight=[None, 'w1'], cutoff=[2, 10]))
     assert_equal(len(paths), 0)
 
 
@@ -217,13 +223,14 @@ def test_all_simple_paths_directed():
 
 def test_all_simple_paths_empty():
     G = nx.path_graph(4)
-    paths = nx.all_simple_paths(G, 0, 3, cutoff_len=2)
+    paths = nx.all_simple_paths(G, 0, 3, cutoff=2)
     assert_equal(list(paths), [])
+
 
 def test_all_simple_paths_corner_cases():
     assert_equal(list(nx.all_simple_paths(nx.empty_graph(2), 0, 0)), [])
     assert_equal(list(nx.all_simple_paths(nx.empty_graph(2), 0, 1)), [])
-    assert_equal(list(nx.all_simple_paths(nx.path_graph(9), 0, 8, 0)), [])
+    assert_equal(list(nx.all_simple_paths(nx.path_graph(9), 0, 8, cutoff=0)), [])
 
 
 def hamiltonian_path(G, source):
@@ -246,9 +253,9 @@ def test_hamiltonian_path():
 
 def test_cutoff_zero():
     G = nx.complete_graph(4)
-    paths = nx.all_simple_paths(G, 0, 3, cutoff_len=0)
+    paths = nx.all_simple_paths(G, 0, 3, cutoff=0)
     assert_equal(list(list(p) for p in paths), [])
-    paths = nx.all_simple_paths(nx.MultiGraph(G), 0, 3, cutoff_len=0)
+    paths = nx.all_simple_paths(nx.MultiGraph(G), 0, 3, cutoff=0)
     assert_equal(list(list(p) for p in paths), [])
 
 

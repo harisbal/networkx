@@ -91,7 +91,7 @@ def is_simple_path(G, nodes):
             all(v in G[u] for u, v in pairwise(nodes)))
 
 
-def all_simple_paths(G, source, target, cutoff_len=None, weight=None, cutoff_weight=None):
+def all_simple_paths(G, source, target, weight=None, cutoff=None):
     """Generate all simple paths in the graph G from source to target.
 
     A simple path is a path with no repeated nodes.
@@ -114,7 +114,7 @@ def all_simple_paths(G, source, target, cutoff_len=None, weight=None, cutoff_wei
         edges are considered to have unit weight. Default value None.
 
     cutoff_weight : integer, optional
-        Weighted path length to stop the search. Only paths of weight_length <= cutoff_weight are returned.
+        Weighted path length to stop the search. Only paths of weight_length <= cutoff are returned.
 
     Returns
     -------
@@ -245,73 +245,131 @@ def all_simple_paths(G, source, target, cutoff_len=None, weight=None, cutoff_wei
             raise nx.NodeNotFound('target node %s not in graph' % target)
     if source in targets:
         return []
-    if cutoff_len is None:
-        cutoff_len = len(G) - 1
-    if cutoff_len < 1:
-        return []
 
-    if weight is not None:
-        weights = nx.get_edge_attributes(G, weight)
-        if None in weights.values():
-            raise ValueError('Weight: {} cannot include None'.format(weight))
-    if cutoff_weight is None:
-        cutoff_weight = float('inf')
+    if not isinstance(weight, list):
+        weights = [weight]
+    else:
+        weights = weight
+
+    for weight in weights:
+        ws = nx.get_edge_attributes(G, weight)
+        if None in ws.values():
+            raise ValueError('weight: %s cannot include None' % weight)
+
+    if weight is None:
+        if cutoff is None:
+            cutoff = len(G) + 1
+        if cutoff < 1:
+            return []
+    else:
+        if cutoff is None:
+            raise ValueError('cutoff cannot be None when weight is not None')
+
+    if not isinstance(cutoff, list):
+        cutoffs = [cutoff]
+    else:
+        cutoffs = cutoff
 
     if G.is_multigraph():
-        return _all_simple_paths_multigraph(G, source, targets, cutoff_len)
+        return _all_simple_paths_multigraph(G, source, targets, weights, cutoffs)
     else:
-        if weight:
-            return _all_simple_paths_weighted_graph(G, source, targets, cutoff_len,
-                                                    weight, cutoff_weight)
-        else:
-            return _all_simple_paths_graph(G, source, targets, cutoff_len)
+        return _all_simple_paths_graph(G, source, targets, weights, cutoffs)
 
 
-def _all_simple_paths_graph(G, source, targets, cutoff):
+def _all_simple_paths_graph(G, source, targets, weights, cutoffs):
+
+    def _path_weight_length(nodes, _weight):
+        length = sum([G[u][v][_weight] for u, v in pairwise(nodes)])
+        return length
+
     visited = collections.OrderedDict.fromkeys([source])
     stack = [iter(G[source])]
+
+    # Check if path length (expressed as None) is in weights
+    if None in weights:
+        idx_none = weights.index(None)
+        cutoff_len = cutoffs.pop(idx_none)
+        weights.remove(None)
+    else:
+        cutoff_len = len(G) - 1
+
+    weight_cutoff_combs = list(zip(weights, cutoffs))
+
     while stack:
         children = stack[-1]
         child = next(children, None)
         if child is None:
             stack.pop()
             visited.popitem()
-        elif len(visited) < cutoff:
+        elif len(visited) < cutoff_len:
             if child in visited:
                 continue
+            cont = False
+            for w, co in weight_cutoff_combs:
+                if _path_weight_length(list(visited) + [child], w) > co:
+                    cont = True
+                    break
+            if cont:
+                continue
+
             if child in targets:
                 yield list(visited) + [child]
+
             visited[child] = None
+
             if targets - set(visited.keys()):  # expand stack until find all targets
                 stack.append(iter(G[child]))
             else:
                 visited.popitem()  # maybe other ways to child
         else:  # len(visited) == cutoff:
             for target in (targets & (set(children) | {child})) - set(visited.keys()):
-                yield list(visited) + [target]
+                # check if weight path length requirement is met
+                yld = True
+                for w, co in weight_cutoff_combs:
+                    if (_path_weight_length(list(visited)+[target], w)) > co:
+                        yld = False
+                        break
+                if yld:
+                    yield list(visited) + [target]
             stack.pop()
             visited.popitem()
 
 
-def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist):
+def _all_simple_paths_multigraph(G, source, targets, weights, cutoffs):
 
-    def _calculate_distance(nodes):
-        dist = sum([G[u][v][weight] for u, v in pairwise(nodes)])
-        return dist
+    def _path_weight_length(nodes, _weight):
+        length = sum([G[u][v][_weight] for u, v in pairwise(nodes)])
+        return length
 
     visited = collections.OrderedDict.fromkeys([source])
-    stack = [iter(G[source])]
+    stack = [(v for u, v in G.edges(source))]
+    # Check if path length (expressed as None) is in weights
+    if None in weights:
+        idx_none = weights.index(None)
+        cutoff_len = cutoffs.pop(idx_none)
+        weights.remove(None)
+    else:
+        cutoff_len = len(G) - 1
+
+    weight_cutoff_combs = list(zip(weights, cutoffs))
+
     while stack:
         children = stack[-1]
         child = next(children, None)
         if child is None:
             stack.pop()
             visited.popitem()
-        elif len(visited) < cutoff:
+        elif len(visited) < cutoff_len:
             if child in visited:
                 continue
-            if _calculate_distance(list(visited) + [child]) > maxdist:
+            cont = False
+            for w, co in weight_cutoff_combs:
+                if _path_weight_length(list(visited) + [child], w) > co:
+                    cont = True
+                    break
+            if cont:
                 continue
+
             if child in targets:
                 yield list(visited) + [child]
 
@@ -320,40 +378,21 @@ def _all_simple_paths_weighted_graph(G, source, targets, cutoff, weight, maxdist
             if targets - set(visited.keys()):  # expand stack until find all targets
                 stack.append(iter(G[child]))
             else:
-                visited.popitem()# maybe other ways to child
-        else:  # len(visited) == cutoff:
-            for target in (targets & (set(children) | {child})) - set(visited.keys()):
-                # check if length requirement is met
-                if (_calculate_distance(list(visited)+[target])) <= maxdist:
-                    yield list(visited) + [target]
-            stack.pop()
-            visited.popitem()
+                visited.popitem()  # maybe other ways to child
 
-
-def _all_simple_paths_multigraph(G, source, targets, cutoff):
-    visited = collections.OrderedDict.fromkeys([source])
-    stack = [(v for u, v in G.edges(source))]
-    while stack:
-        children = stack[-1]
-        child = next(children, None)
-        if child is None:
-            stack.pop()
-            visited.popitem()
-        elif len(visited) < cutoff:
-            if child in visited:
-                continue
-            if child in targets:
-                yield list(visited) + [child]
-            visited[child] = None
-            if targets - set(visited.keys()):
-                stack.append((v for u, v in G.edges(child)))
-            else:
-                visited.popitem()
         else:  # len(visited) == cutoff:
             for target in targets - set(visited.keys()):
                 count = ([child] + list(children)).count(target)
                 for i in range(count):
-                    yield list(visited) + [target]
+                    # check if weight path length requirement is met
+                    yld = True
+                    for w, co in weight_cutoff_combs:
+                        if (_path_weight_length(list(visited) + [target], w)) > co:
+                            yld = False
+                            break
+                    if yld:
+                        yield list(visited) + [target]
+
             stack.pop()
             visited.popitem()
 
