@@ -256,7 +256,11 @@ def all_simple_paths(G, source, target, cutoff=None):
         else:
             return _all_simple_paths_weighted_graph(G, source, targets, cutoff)
     else:
-        raise TypeError('cutoff is neither int nor dict')
+        raise TypeError("cutoff is neither int nor dict")
+
+
+def _empty_generator():
+    yield from ()
 
 
 def _is_path_under_cutoff(G, path, cutoff):
@@ -281,10 +285,6 @@ def _is_path_under_cutoff(G, path, cutoff):
             return False
 
     return True
-
-
-def _empty_generator():
-    yield from ()
 
 
 def _all_simple_paths_graph(G, source, targets, cutoff):
