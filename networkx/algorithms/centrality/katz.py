@@ -75,6 +75,7 @@ def katz_centrality(
     weight : None or string, optional (default=None)
       If None, all edge weights are considered equal.
       Otherwise holds the name of the edge attribute used as weight.
+      In this measure the weight is interpreted as the connection strength.
 
     Returns
     -------
@@ -141,7 +142,7 @@ def katz_centrality(
     .. [2] Leo Katz:
        A New Status Index Derived from Sociometric Index.
        Psychometrika 18(1):39–43, 1953
-       http://phya.snu.ac.kr/~dkim/PRL87278701.pdf
+       https://link.springer.com/content/pdf/10.1007/BF02289026.pdf
     """
     if len(G) == 0:
         return {}
@@ -242,6 +243,7 @@ def katz_centrality_numpy(G, alpha=0.1, beta=1.0, normalized=True, weight=None):
     weight : None or string, optional
       If None, all edge weights are considered equal.
       Otherwise holds the name of the edge attribute used as weight.
+      In this measure the weight is interpreted as the connection strength.
 
     Returns
     -------
@@ -300,12 +302,10 @@ def katz_centrality_numpy(G, alpha=0.1, beta=1.0, normalized=True, weight=None):
     .. [2] Leo Katz:
        A New Status Index Derived from Sociometric Index.
        Psychometrika 18(1):39–43, 1953
-       http://phya.snu.ac.kr/~dkim/PRL87278701.pdf
+       https://link.springer.com/content/pdf/10.1007/BF02289026.pdf
     """
-    try:
-        import numpy as np
-    except ImportError as e:
-        raise ImportError("Requires NumPy: http://numpy.org/") from e
+    import numpy as np
+
     if len(G) == 0:
         return {}
     try:
@@ -322,7 +322,7 @@ def katz_centrality_numpy(G, alpha=0.1, beta=1.0, normalized=True, weight=None):
         except (TypeError, ValueError, AttributeError) as e:
             raise nx.NetworkXError("beta must be a number") from e
 
-    A = nx.adj_matrix(G, nodelist=nodelist, weight=weight).todense().T
+    A = nx.adjacency_matrix(G, nodelist=nodelist, weight=weight).todense().T
     n = A.shape[0]
     centrality = np.linalg.solve(np.eye(n, n) - (alpha * A), b)
     if normalized:

@@ -20,8 +20,9 @@ identified pairs of nodes (called edges, links, etc).  In NetworkX, nodes can
 be any :py:term:`hashable` object e.g., a text string, an image, an XML object,
 another Graph, a customized node object, etc.
 
-.. note:: Python's ``None`` object should not be used as a node as it determines
-   whether optional function arguments have been assigned in many functions.
+.. note:: Python's ``None`` object is not allowed to be used as a node. It
+    determines whether optional function arguments have been assigned in many
+    functions. And it can be used as a sentinel object meaning "not a node".
 
 Nodes
 -----
@@ -130,6 +131,24 @@ At this stage the graph ``G`` consists of 8 nodes and 3 edges, as can be seen by
     8
     >>> G.number_of_edges()
     3
+
+.. note:: 
+   
+   The order of adjacency reporting (e.g., G.adj, G.successors,
+   G.predecessors) is the order of edge addition. However, 
+   the order of G.edges is the order of the adjacencies
+   which includes both the order of the nodes and each 
+   node's adjacencies. See example below:
+
+.. nbplot::
+
+    >>> G = nx.DiGraph()
+    >>> G.add_edge(2, 1)   # adds the nodes in order 2, 1
+    >>> G.add_edge(1, 3)
+    >>> G.add_edge(2, 4)
+    >>> G.add_edge(1, 2)
+    >>> assert list(G.successors(2)) == [1, 4]
+    >>> assert list(G.edges) == [(2, 1), (2, 4), (1, 3), (1, 2)]
 
 Examining elements of a graph
 -----------------------------
@@ -547,8 +566,7 @@ Matplotlib
 >>> plt.show()
 
 command if you are not using matplotlib in interactive mode (see
-`Matplotlib FAQ <http://matplotlib.org/faq/installing_faq.html#matplotlib-compiled-fine-but-nothing-shows-up-when-i-use-it>`_
-).
+:doc:`this Matplotlib FAQ <faq/installing_faq>`).
 
 .. nbplot::
 
